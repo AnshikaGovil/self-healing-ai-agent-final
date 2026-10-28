@@ -128,6 +128,14 @@ python rpa-toolkit/tests/test_bis.py
 python deploy/tests/test_deploy.py
 ```
 
+The healing service's own suite - API, policy, fleet memory, the LLM's odds,
+failover, sessions, the ReFlex Agent - needs the service's packages
+(`pip install -r healing-service/requirements.txt`):
+
+```bash
+python healing-service/tests/test_service.py   # 145 pass; 51 training-pipeline tests are skipped
+```
+
 ## How the public service runs
 
 The front door is the healing service itself on a Modal CPU, started per
