@@ -1,0 +1,131 @@
+Question 1: Problem statement
+
+Companies run software bots (RPA and UI automation) that do repetitive work in business applications: onboarding employees in HR systems, keying invoices into ERPs, updating CRMs, downloading reports from portals. A bot finds every button, box and link on the screen by an address called a selector.
+
+When the vendor ships a new release, those addresses change. Ids get renamed, links move into menus, buttons are rebuilt. The selector then finds nothing, and the bot stops in the middle of the business process.
+
+Who has it: every team running automation on applications they don't control (SaaS, enterprise suites, partner portals). That includes the automation engineers who maintain the bots and the business teams waiting for their output.
+
+How often: every release of every application a bot touches. SaaS vendors ship often, and a bot that spans several applications meets every one of their releases. In our proof of concept, one real redesign (Wikipedia's 2010 design to its 2022 one) broke 3 of the 7 steps in a simple research bot. One moved "Log in" link stopped the whole run at step 4.
+
+What it costs:
+- The queue stops: new joiners aren't onboarded, invoices pile up and reports are late until someone notices.
+- An engineer has to find the broken step, write a new selector, test it and redeploy, often for hours per break, and again for the next release.
+- Teams spend their time keeping old bots alive instead of automating new work.
+- Worst case, the failure is silent: a bot "succeeds" by typing into the wrong field, and the error surfaces later in the data.
+
+---
+
+Question 2: Solution
+
+We built the Healing Agent. It repairs a broken step while the bot is still running, and it never guesses. It has three parts:
+- a one-file client (bis.py) that bots import;
+- a healing service with an API;
+- a fine-tuned LLM on a GPU, which the service calls over HTTP.
+
+Step by step:
+
+1. Normal lookup first. The bot asks for an element with its usual selector plus a plain-English description, for example "the Log in link for user accounts". If the selector works, nothing else happens and healing costs nothing.
+2. Read the page. If the selector finds nothing, the client runs JavaScript inside the live page. It lists up to ~900 elements: tag, id, classes, visible text, accessible name, role, link target and position. It reaches inside shadow roots and frames. It never sends what a user typed into a field.
+3. Call the API. The client sends the broken selector, the description and the element list to POST /v1/adjudicate.
+4. Fleet memory. If any bot already solved this exact break, that proven repair is reused instantly, with no LLM call.
+5. Rank. A fast ranker scores every element with eight signals. These include name similarity (digits ignored), words against the description, and the element's place and look against the fingerprint learned when the step last worked. The best eight form a shortlist.
+6. LLM decision. Our fine-tuned LLM reads the step and the eight candidates and answers with an index ("candidate 2") or "none". It can't invent a selector. Its confidence is read from the model's own token probabilities.
+7. Policy. One function decides to apply, hold for review or refuse:
+   - bars are calibrated per kind of step;
+   - a selector never seen working is never applied on its own;
+   - near-ties are discounted.
+8. Bind and check. The client builds new selectors for the chosen element from the live page, most durable first. It keeps the first one that matches exactly one element and that is the very element the service chose. Then the bot continues and reports what worked, so the next repair is faster.
+
+Tools and systems:
+- Python with Selenium or Playwright;
+- a FastAPI healing service on a Modal cloud CPU;
+- the fine-tuned LLM on a GPU, behind llama.cpp's server;
+- SQLite fleet memory (RAG memory) and per-session memory;
+- automatic failover to other GPUs, and to a ranker-only mode if none answers;
+- spending caps and rate limits.
+
+What it decides on its own: which element is the one the step meant, whether it's sure enough to apply, and the new selector.
+
+Where a person stays in control:
+- A repair it isn't sure of is held for review. A review hook shows it to a person, already bound to the page, and only a "yes" applies it.
+- Verdicts are kept as labels, and a rejected repair is retired immediately.
+- No answer means the step is refused, never guessed.
+- If the service is down, the bot behaves exactly as before.
+
+Results:
+- Live on Wikipedia's real redesign: 7 of 7 steps, with 3 of 3 breaks healed through the LLM in 16-19 s each.
+- On 1,000 held-out cases from 212 websites it never trained on, 96.2% of the repairs it applied on its own were right.
+
+---
+
+Question 3: Brief
+
+The Healing Agent keeps software bots working when the applications they use change.
+
+Bots find buttons and fields by an address. When a vendor releases a new version, those addresses break and the bot stops. With our agent, the bot asks our AI service instead. The service looks at the live page, picks the element the step meant, and the bot carries on in seconds without a human. If the agent isn't sure, it asks a person instead of guessing. Every repair is remembered, so the next bot with the same problem is fixed instantly.
+
+Who uses it: automation teams running RPA or Selenium/Playwright bots on business applications. They add one file and change one line per lookup.
+
+What works today: a public healing service with a fine-tuned AI on a cloud GPU, and a live demo on Wikipedia. A bot written for its 2010 design runs on its 2022 redesign. Without the agent it stops at step 4; with it, all 7 steps pass and 3 broken steps heal automatically. On 1,000 test cases from websites the AI never saw, 96.2% of the repairs it applied on its own were correct.
+
+---
+
+Question 4: Impact, time, cost and ROI
+
+What we measured:
+- A repair takes 15-20 s on our public service, and about 6 s on a local GPU.
+- The LLM uses 3-4 s of a T4 GPU per repair. At about $0.70 per GPU-hour, that is roughly $0.001 per repair.
+- A repeat break, served from fleet memory, uses no GPU at all.
+- On websites the AI never saw, about 2 in 3 breaks are fixed with no human. When the step had been seen working before, most of the breaks were recovered (an earlier measurement over 3,853 breaks on 102 live websites).
+- 96.2% of the repairs applied on their own were correct.
+
+Worked estimate. The scenario figures below are assumptions; replace them with your own:
+- Bots: 100, each meeting 2 UI breaks a month, so 200 breaks a month.
+- Manual fix per break: 3 hours to find, fix, test and redeploy, at $50 an hour, which is $150 per break and $30,000 a month.
+- Healed automatically: conservatively 66% of 200, so 132 breaks a month. That saves about 400 engineer-hours, or about $19,800 a month.
+- Not yet counted: process downtime avoided. Each healed break keeps the queue running instead of waiting hours to a day for a fix.
+
+Cost to run:
+- One GPU: about $0.70/hour × 720 hours, which is about $500 a month. A per-call setup like our public deployment costs far less.
+- Integration: one file and one line per lookup. Assume about 1 developer-week for 100 bots, about $2,000 one-off.
+
+ROI:
+- ≈ 16,800 hours saved per year (around 8.5 FTE).
+
+Fleet memory improves this over time: a break is paid for once, and every other bot hitting the same change gets the fix free.
+
+---
+
+Question 5: USP
+
+1. The AI can't invent a selector. Generic AI agents write selectors or click coordinates, and can make up ones that match nothing, or the wrong thing. Our LLM only picks the number of an element that exists in the live page. The selector is then built and tested inside the browser before it is used.
+2. It refuses instead of guessing. Many self-healing tools apply their best similarity match. Ours has one calibrated policy (apply, review or refuse) and won't auto-apply a selector it never saw working. That is why 96.2% of the repairs it applied on its own were right on websites it never saw, and why 118 of 118 invented or copied selectors were held back.
+3. Fleet memory. One bot's repair fixes every bot. A repeat break costs no AI call, and a repair that proves wrong is retired automatically.
+4. Drop-in. One file, standard library only, for plain Selenium or Playwright scripts. There is no platform migration, it returns the library's own element, and the bot's click and type code doesn't change.
+5. Small, private and cheap. A fine-tuned 4B open model beat a 5× larger fine-tuned model on our test set. It runs on one GPU at about $0.001 per repair and can be hosted inside a company network, so page data never leaves it.
+6. Built for run time, safely. It heals the production bot mid-process, not just test scripts, and everything fails safe: if the service is down, the bot behaves exactly as before.
+
+Why a team would choose it: it removes the most common cause of bot downtime, without trusting an AI to guess and without changing the automation platform.
+
+---
+
+Question 6: Progress since the last submission
+
+The git history shows two waves of work: early September, and a large drop on 26-27 October. I don't know your Round 2 date, so remove anything below that the jury already saw.
+
+- Better, calibrated AI. We fine-tuned a stage-3 model on 24,000 more examples, including sets, read steps and widgets. On 1,000 test cases from unseen websites it went from 82.7% to 85.1% correct (p = 0.006). Its confidence now comes from the model's own token probabilities (AUC 0.93, against 0.59 for the number it writes), with calibrated bars per kind of step.
+- Optional checker: a small fine-tuned second-opinion model (AUC 0.982).
+- Reach: shadow roots and frames are now handled. Bots built on component libraries or framed apps can heal.
+- Safety and privacy:
+  - the bound element must be the one the AI chose;
+  - repairs that lead to the wrong next page are demoted;
+  - a review hook for people, whose verdicts are kept as labels;
+  - field values (including passwords) are never sent.
+- Production deployment:
+  - a public healing service on Modal (CPU API, GPU for the LLM) that sleeps when idle;
+  - monthly spending caps;
+  - failover across GPU backends, plus ranker-only mode;
+  - rate limits, and a private memory per demo session.
+- An agent experiment, measured honestly. We built a tool-using planner (14 tools) and tested 8 planner models. None beat the plain pipeline and all were slower, so it ships switched off.
+- Production-ready demo: the Wikipedia POC running end to end through the API, with message cards showing Agent ON/OFF, each healed step with its healing time, and a pop-up naming any failed step.
