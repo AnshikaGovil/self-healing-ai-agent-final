@@ -1,6 +1,6 @@
 # bis-core
 
-The half of the Self Healing AI Agent that both other packages need.
+The half of the Healing Agent that both other packages need.
 
 It holds the element and locator descriptors, the seven deterministic
 ranking signals, the confidence-band policy, and the adjudication wire

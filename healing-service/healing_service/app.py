@@ -114,7 +114,7 @@ def _js_bundle() -> dict:
 
 JS_BUNDLE = _js_bundle()
 
-SERVICE_NAME = "self-healing-ai-agent"
+SERVICE_NAME = "healing-agent"
 SERVICE_VERSION = "1.1.0"
 
 # Good runs a step's outcome needs behind it before a healed run is judged
@@ -286,7 +286,7 @@ def create_app(config: Optional[HealingConfig] = None,
         state.sessions.close()
 
     app = FastAPI(
-        title="Self Healing AI Agent - Healing Service",
+        title="Healing Agent - Healing Service",
         version=SERVICE_VERSION,
         summary="Ranks and adjudicates replacement locators for RPA bots "
                 "whose selectors have broken.",
@@ -970,7 +970,7 @@ def parse_command_line(argv=None):
     """
     import argparse
 
-    ap = argparse.ArgumentParser(description="Self Healing AI Agent healing service")
+    ap = argparse.ArgumentParser(description="Healing Agent healing service")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8077)
     ap.add_argument("--model", default=None, help="path to the GGUF model file")

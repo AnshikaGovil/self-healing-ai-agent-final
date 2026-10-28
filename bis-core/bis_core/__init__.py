@@ -1,4 +1,4 @@
-"""Shared core of the Self Healing AI Agent.
+"""Shared core of the Healing Agent.
 
 Everything both sides of the network seam need: the locator and element
 descriptors, the six deterministic ranking signals, the confidence-band

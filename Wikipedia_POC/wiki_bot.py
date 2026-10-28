@@ -116,21 +116,6 @@ STEPS = [
      "Confirm the search landed on the right article"),
 ]
 
-# How the service reached a decision, in words for the room.
-STRATEGY = {
-    "fleet-memory": "Recalled from fleet memory - this break was already "
-                    "solved, so no AI call was needed.",
-    "checker-sure": "The fine-tuned checker recognised it on its own.",
-    "checker+ai-agree": "The checker and the LLM agreed on it.",
-    "ai-confirmed": "The LLM read the ranked page elements and confirmed "
-                    "the best match.",
-    "ai-override": "The LLM read the ranked page elements and picked a "
-                   "better match than the ranker.",
-    "heuristic": "The ranker matched it against what was learned.",
-    "heuristic-unconfirmed": "The ranker matched it against what was "
-                             "learned.",
-}
-
 WAIT_S = 4.0     # how long either arm waits for an element before giving up
 
 
@@ -343,14 +328,13 @@ def run_steps(driver, cards, args, watch, data, rows):
                     cards.show("broken", kicker + "  -  broken by the release",
                                "The old address finds nothing",
                                "The 2022 redesign changed %s. Without the "
-                               "Healing Agent, the bot would stop right "
-                               "here." % short, old_sel=selector)
+                               "agent, the bot would stop right here."
+                               % short, old_sel=selector)
                     time.sleep(pace * 1.1)
                     cards.show("healing", kicker + "  -  self-healing",
                                "Healing %s ..." % short,
-                               "The page's elements go to the healing "
-                               "service, which ranks them against what was "
-                               "learned and asks its LLM to pick one.",
+                               "Searching the redesigned page for the "
+                               "element this step needs.",
                                old_sel=selector)
                     t0 = time.time()
                     # The wait is already spent; the healer starts at once.
@@ -413,8 +397,8 @@ def run_steps(driver, cards, args, watch, data, rows):
                 cards.step(i, "healed", "healed in %.1f s" % h["secs"])
                 cards.show("healed", kicker + "  -  healed",
                            "%s found again" % (short[0].upper() + short[1:]),
-                           STRATEGY.get(h["strategy"], "Repaired by the "
-                                        "healing service."),
+                           "Healed on the redesigned page - the bot "
+                           "carries on with no human involved.",
                            old_sel=selector, new_sel=h["bound"],
                            stats=[("Healing time", "%.1f s" % h["secs"],
                                    "bisxG")])
@@ -464,8 +448,8 @@ def run_steps(driver, cards, args, watch, data, rows):
             cards.step(i, "failed", "failed")
             for j in range(n, total):
                 cards.steps[j]["state"] = "skip"
-            cards.show("failed", kicker + "  -  BOT STOPPED",
-                       "The bot cannot continue",
+            cards.fail("Bot stopped", "Step %d of %d failed" % (n, total),
+                       doing,
                        ("The 2022 redesign changed %s, and the script only "
                         "knows the 2010 address. Today an engineer has to "
                         "fix the script before it runs again." % short)
@@ -473,7 +457,7 @@ def run_steps(driver, cards, args, watch, data, rows):
                        old_sel=selector,
                        stats=[("Steps done", "%d / %d" % (n - 1, total),
                                "bisxR"),
-                              ("Healing Agent", "OFF" if args.plain else "ON",
+                              ("Agent", "OFF" if args.plain else "ON",
                                "")])
             print_row(row)
             return row
@@ -493,8 +477,7 @@ def print_row(r):
         print(head + P.healed("HEALED ") + " " + clip(r["value"], 44))
         print(" " * len(head) + P.healed("        -> %s" % clip(h["bound"],
                                                                  60)))
-        print(" " * len(head) + P.dim("           healed in %.1f s - %s" % (
-            h["secs"], h["strategy"])))
+        print(" " * len(head) + P.dim("           healed in %.1f s" % h["secs"]))
     else:
         print(head + P.ok("OK     ") + " " + clip(r["value"], 44))
 
@@ -615,20 +598,20 @@ def main():
 
     if after:
         phase = "AFTER THE RELEASE"
-        pill, pill_class = (("HEALING AGENT ON", "bisxOn") if healing
-                            else ("HEALING AGENT OFF", "bisxOff"))
+        pill, pill_class = (("AGENT ON", "bisxOn") if healing
+                            else ("AGENT OFF", "bisxOff"))
     else:
         phase, pill, pill_class = ("BEFORE THE RELEASE", "LEARNING",
                                    "bisxLearn")
 
     print()
-    banner(["WIKIPEDIA SELF-HEALING POC   -   Self Healing AI Agent",
+    banner(["WIKIPEDIA SELF-HEALING POC   -   Healing Agent",
             "",
             "Website version : Wikipedia %s (%s)" % (short, long_name),
             "Stage           : %s" % phase.title(),
-            "Healing Agent   : %s" % (
+            "Agent           : %s" % (
                 "OFF - plain Selenium" if not healing else
-                "ON  - repairs through the healing service and its LLM"
+                "ON  - broken steps heal automatically"
                 if after else "learning - every element is fingerprinted")],
            P.healed if healing and after else P.bad if not healing
            else P.ok)
@@ -686,9 +669,8 @@ def main():
                     "The bot runs on the design it was written for.")
                    if not after else
                    ("Same bot, same article - but Wikipedia was redesigned. "
-                    "Healing Agent %s." % (
-                        "ON: broken steps are repaired by the healing "
-                        "service and its LLM" if healing
+                    "Agent %s." % (
+                        "ON: broken steps heal automatically" if healing
                         else "OFF: plain Selenium")),
                    stats=[("Steps", str(len(STEPS)), "")])
         time.sleep(args.pace * 1.8)
@@ -716,7 +698,7 @@ def main():
                            stats=[("Steps passed", "%d / %d" % (
                                len(rows), len(STEPS)), "bisxG")])
             elif healed:
-                cards.show("done", "Run complete  -  Healing Agent ON",
+                cards.show("done", "Run complete  -  Agent ON",
                            "%d of %d steps passed on the 2022 redesign"
                            % (len(rows), len(STEPS)),
                            "%d broken steps repaired automatically, with no "
@@ -733,7 +715,9 @@ def main():
                            "Nothing needed repairing.",
                            stats=[("Steps passed", "%d / %d" % (
                                len(rows), len(STEPS)), "bisxG")])
-        time.sleep(max(args.pace * 3, 5))
+        # A failure holds longer: the pop-up is what the room has to read.
+        time.sleep(max(args.pace * 4, 8) if failed
+                   else max(args.pace * 3, 5))
     finally:
         if healing:
             flush_reports()
@@ -764,15 +748,10 @@ def main():
                    "their fingerprints are with the healing service."
                    % (len(rows), len(STEPS))))
     elif healed:
-        from_memory = sum(1 for r in healed
-                          if r["heal"]["strategy"] == "fleet-memory")
         print(P.healed("  PASSED: %d of %d steps on the %s design - %d "
-                       "repaired automatically, %.1f s of healing, no human."
+                       "healed automatically, %.1f s of healing, no human."
                        % (len(rows), len(STEPS), args.design, len(healed),
                           sum(r["heal"]["secs"] for r in healed))))
-        if from_memory < len(healed):
-            print(P.dim("  The repairs are now in fleet memory: run the same "
-                        "command again and they apply without the AI."))
     else:
         print(P.ok("  PASSED: %d of %d steps, nothing needed repairing."
                    % (len(rows), len(STEPS))))

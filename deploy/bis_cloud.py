@@ -323,7 +323,7 @@ WHEEL = ('"llama-cpp-python[server]==0.3.36" --only-binary llama-cpp-python'
          'whl/cu124')
 
 KAGGLE_CELL = '''\
-# Self Healing AI Agent - this notebook's T4 as an AI backend of the public
+# Healing Agent - this notebook's T4 as an AI backend of the public
 # front door. Notebook settings: Accelerator "GPU T4 x2", Internet on.
 # Add-ons > Secrets: HF_TOKEN (reads the model repo) and BIS_ADMIN_KEY (its
 # value is in deploy/accounts.env). The server registers itself, keeps its
@@ -343,7 +343,7 @@ subprocess.run(cmd.split())
 '''
 
 LIGHTNING_CELL = '''\
-# Self Healing AI Agent - this Lightning Studio's T4 as an AI backend of the
+# Healing Agent - this Lightning Studio's T4 as an AI backend of the
 # public front door. Paste into the Studio's terminal (machine: T4). It asks
 # for the HF token and the admin key (deploy/accounts.env) without showing
 # them, registers itself, and after %(hours)g hours withdraws and stops the

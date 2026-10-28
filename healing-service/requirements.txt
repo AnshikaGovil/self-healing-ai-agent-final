@@ -6,7 +6,7 @@ torch>=2.2.0                   # BSD-3       encoder backend
 numpy>=1.26.0                  # BSD-3
 llama-cpp-python>=0.3.0        # MIT         GGUF runtime
 
-# Self Healing AI Agent - dependencies for the HEALING SERVICE (the GPU host)
+# Healing Agent - dependencies for the HEALING SERVICE (the GPU host)
 #
 # Install these on the one accelerated machine that serves the fleet:
 #     pip install -r requirements-service.txt

@@ -1,4 +1,4 @@
-# Setting up Self Healing AI Agent on another machine
+# Setting up Healing Agent on another machine
 
 Everything here starts from the public repository:
 

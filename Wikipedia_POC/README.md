@@ -28,18 +28,19 @@ writes only `memory/`, which git ignores.
 
 ## What the audience sees
 
-Chrome opens maximised. See-through message cards in the bottom-right
-corner narrate the run:
+Chrome opens maximised and see-through message cards narrate the run:
 
-* the **website version** (2010 design or 2022 redesign) and the stage
-  (before or after the release);
-* **HEALING AGENT ON** or **HEALING AGENT OFF** on every after-release card
-  (**LEARNING** before the release);
-* every broken step as three cards - **broken by the release** (red),
-  **self-healing** (amber, while the healing service and its LLM decide) and
-  **healed** (green) with the old address struck through, the new one, and
-  the **healing time**;
-* a checklist of the bot's seven steps, and a summary card at the end.
+* **bottom right** - **AGENT ON** or **AGENT OFF** after the release
+  (**LEARNING** before it), the **website version** (2010 design or 2022
+  redesign), the stage, and a checklist of the bot's seven steps;
+* **bottom centre** - one card per step. A broken step goes through three:
+  **broken by the release** (red), **self-healing** (amber, while the
+  healing service and its LLM decide) and **healed** (green), with the old
+  address struck through, the new one, and the **healing time**. A summary
+  card closes the run;
+* **centre of the screen** - when a step fails, a pop-up over the dimmed page
+  names it: *Step 4 of 7 failed - Check the Log in link*, why, and how many
+  steps were done.
 
 Every element the bot uses gets a ring on the page: blue when the old
 address worked, green when it was healed.
@@ -75,23 +76,23 @@ python wiki_bot.py --design old
 fingerprinted for the healing service. *"This is the bot as it runs today,
 on the design it was written for."*
 
-**Step 2 - after the release, Healing Agent OFF**
+**Step 2 - after the release, Agent OFF**
 
 ```bash
 python wiki_bot.py --design new --plain
 ```
 
-**HEALING AGENT OFF**. Steps 1-3 pass, then **BOT STOPPED** at step 4 (Log
+**AGENT OFF**. Steps 1-3 pass, then the centre pop-up says **Step 4 of 7 failed** (Log
 in link). *"Same bot, same article, Wikipedia's new design. One moved link
 and the run is dead until an engineer fixes the script."*
 
-**Step 3 - after the release, Healing Agent ON**
+**Step 3 - after the release, Agent ON**
 
 ```bash
 python wiki_bot.py --design new
 ```
 
-**HEALING AGENT ON**. Each broken step goes broken - self-healing - healed:
+**AGENT ON**. Each broken step goes broken - self-healing - healed:
 the bot sends the page's elements to the service, which ranks them against
 what step 1 learned and asks its LLM; the bot then builds the new selector
 in its own browser and checks it finds exactly that element. Ends with **7
@@ -155,7 +156,7 @@ else - but it is not the story to open with.
 | option | default | what it does |
 | --- | --- | --- |
 | `--design old` / `new` | `new` | before the release (learns) / after it |
-| `--plain` | off | Healing Agent OFF - plain Selenium, the control run |
+| `--plain` | off | Agent OFF - plain Selenium, the control run |
 | `--pace SECONDS` | `1.8` | how long each message card stays up |
 | `--article NAME` | `Robotic_process_automation` | the article to start on |
 | `--query TEXT` | `Machine learning` | what the bot searches for |
